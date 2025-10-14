@@ -1,0 +1,30 @@
+model:
+  cnn_channels: [32, 64, 128, 256]
+  lstm_hidden: 256
+  lstm_layers: 2
+  bidirectional: true
+  dropout: 0.2
+
+training:
+  epochs: 50
+  batch_size: 32
+  lr: 1.0e-3
+  optimizer: adam
+  scheduler: plateau
+  ctc_blank_idx: 0
+
+data:
+  image_height: 64
+  max_width: 800
+  charset: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 .,!?-:;'\"()"
+
+preprocessing:
+  denoise_h: 10
+  clahe_clip: 2.0
+  clahe_grid: [8, 8]
+  otsu_adaptive: true
+  sobel_ksize: 3
+
+logging:
+  checkpoint_dir: outputs/
+  save_best_only: true
