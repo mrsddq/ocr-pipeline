@@ -1,105 +1,78 @@
 # OCR Pipeline
 
-End-to-end OCR system combining classical image preprocessing (OpenCV) with deep sequence modelling (CNN + LSTM) and Tesseract fallback. Achieves >92% character-level accuracy on document images.
+Portfolio-ready OCR pipeline for document image preprocessing, inference, and evaluation.
 
-## Results
+The repository is designed around a practical OCR workflow: clean noisy scans, run OCR, compare extracted text against references, and document failure cases. It does not include private datasets or unverified accuracy claims.
 
-| Metric | Value | Notes |
-|---|---|---|
-| Character Accuracy | >92% | On held-out test set |
-| Word Accuracy | _add_ | After re-evaluation |
-| Field-level Accuracy | _add_ | Form/invoice documents |
-| CER | _add_ | Character Error Rate |
-| WER | _add_ | Word Error Rate |
+## Highlights
 
-## Pipeline
+- OpenCV preprocessing pipeline
+- Tesseract-compatible inference entry point
+- Evaluation script structure for CER/WER-style reporting
+- YAML configuration
+- Clear artifact plan for screenshots and error analysis
 
-```
-Raw document image
-  └─ Denoising          (OpenCV fastNlMeans)
-       └─ Histogram EQ  (CLAHE)
-            └─ Thresholding (Otsu adaptive)
-                 └─ Sobel edge enhancement
-                      └─ CNN feature extractor
-                           └─ BiLSTM sequence model
-                                └─ CTC decode  →  text output
+## Structure
+
+```text
+configs/
+  ocr.yaml
+scripts/
+  preprocessing/preprocess.py
+  inference/infer.py
+  evaluation/evaluate.py
 ```
 
-Tesseract is used as a fallback for low-confidence CNN-LSTM outputs.
-
-## Related Publication
-
-> Enhanced Document Image Pre-processing for OCR Accuracy — _[add link/DOI]_
-
-## Quickstart
+## Setup
 
 ```bash
-git clone https://github.com/your-username/ocr-pipeline
-cd ocr-pipeline
+python -m venv .venv
+.venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-## Data
+Tesseract OCR must also be installed on the host machine if using the Tesseract fallback path.
 
-Supports any document image dataset. Tested on:
+## Data Layout
 
-- [IAM Handwriting Database](https://fki.tic.heia-fr.ch/databases/iam-handwriting-database)
-- [ICDAR 2019 Competition](https://rrc.cvc.uab.es/)
-
-```
+```text
 data/
-  raw/             ← original document scans
-  preprocessed/    ← output of preprocessing pipeline
-  ground_truth/    ← .txt files with reference transcriptions
+  raw/
+  preprocessed/
+  ground_truth/
 ```
 
-## Preprocessing
+## Preprocess
 
 ```bash
-python scripts/preprocessing/preprocess.py --input data/raw/ --output data/preprocessed/
-```
-
-Applies: denoise → CLAHE → Otsu threshold → Sobel enhancement.
-
-## Training
-
-```bash
-python scripts/train.py --config configs/ocr.yaml
-```
-
-## Evaluation
-
-```bash
-python scripts/evaluation/evaluate.py --checkpoint outputs/best_model.pt --data data/preprocessed/
+python -m scripts.preprocessing.preprocess --input data/raw --output data/preprocessed
 ```
 
 ## Inference
 
 ```bash
-python scripts/inference/infer.py --input data/raw/sample.png --output outputs/
+python -m scripts.inference.infer --input data/raw/sample.png --output outputs/
 ```
 
-## Sample Outputs
+## Evaluation
 
-| File | Contents |
-|---|---|
-| `assets/01_preprocessing_strip.png` | 5-stage preprocessing pipeline visualised |
-| `assets/02_ocr_output.png` | Document image + extracted text side-by-side |
-| `assets/03_error_analysis.png` | Failure categories: blur, skew, low contrast, etc. |
-| `assets/04_accuracy_metrics.png` | Terminal output showing char/word accuracy |
+```bash
+python -m scripts.evaluation.evaluate --checkpoint outputs/best_model.pt --data data/preprocessed
+```
+
+## Results
+
+No verified public metrics are committed yet. Add a reproducible evaluation table after running on a public dataset such as IAM or ICDAR.
+
+Recommended artifacts:
+
+- `assets/preprocessing-strip.png`
+- `assets/ocr-output.png`
+- `assets/error-analysis.png`
+- `assets/metrics-summary.png`
 
 ## Limitations
 
-- Performance degrades on handwritten text (model tuned for printed documents)
-- Multilingual documents not tested beyond Latin scripts
-- Tesseract fallback adds latency on long documents
-
-## Environment
-
-```
-Python 3.10
-torch==2.1.0
-opencv-python==4.8.1.78
-pytesseract==0.3.10
-Tesseract-OCR >= 5.0
-```
+- No dataset is included.
+- Deep OCR model training is an extension point.
+- Handwritten, multilingual, and low-resolution documents need separate evaluation.
