@@ -1,3 +1,5 @@
+seed: 42
+
 model:
   cnn_channels: [32, 64, 128, 256]
   lstm_hidden: 256

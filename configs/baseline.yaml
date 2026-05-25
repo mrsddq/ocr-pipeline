@@ -1,0 +1,13 @@
+seed: 42
+engine: tesseract
+
+data:
+  ground_truth_dir: data/ground_truth
+  prediction_dir: outputs
+
+preprocessing:
+  denoise_h: 10
+  clahe_clip: 2.0
+  clahe_grid: [8, 8]
+  otsu_adaptive: true
+  sobel_ksize: 3
