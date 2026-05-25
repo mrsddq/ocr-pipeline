@@ -1,0 +1,3 @@
+artifact_type,engine,metric,value,notes
+schema_smoke,tesseract,cer,requires_ground_truth,Real value must come from labelled OCR data
+schema_smoke,tesseract,wer,requires_ground_truth,Real value must come from labelled OCR data

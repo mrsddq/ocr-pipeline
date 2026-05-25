@@ -1,5 +1,7 @@
 # OCR Pipeline
 
+[![CI](https://github.com/mrsddq/ocr-pipeline/actions/workflows/ci.yml/badge.svg)](https://github.com/mrsddq/ocr-pipeline/actions/workflows/ci.yml)
+
 Portfolio-ready OCR pipeline for document image preprocessing, inference, and evaluation.
 
 The repository is designed around a practical OCR workflow: clean noisy scans, run OCR, compare extracted text against references, and document failure cases. It does not include private datasets or unverified accuracy claims.
@@ -17,6 +19,12 @@ The repository is designed around a practical OCR workflow: clean noisy scans, r
 ```text
 configs/
   ocr.yaml
+docs/
+  ABLATION_PLAN.md
+  ARCHITECTURE_RATIONALE.md
+  DEPLOYMENT_NOTES.md
+  REPRODUCIBILITY.md
+  RESULTS_TEMPLATE.md
 scripts/
   preprocessing/preprocess.py
   inference/infer.py
@@ -63,6 +71,15 @@ python -m scripts.evaluation.evaluate --checkpoint outputs/best_model.pt --data 
 ## Results
 
 No verified public metrics are committed yet. Add a reproducible evaluation table after running on a public dataset such as IAM or ICDAR.
+
+Research support docs:
+
+- [Reproducibility Plan](docs/REPRODUCIBILITY.md)
+- [Architecture Rationale](docs/ARCHITECTURE_RATIONALE.md)
+- [Ablation Plan](docs/ABLATION_PLAN.md)
+- [Deployment Notes](docs/DEPLOYMENT_NOTES.md)
+
+`outputs/metrics/smoke_test_results.csv` is a schema artifact only, not a benchmark.
 
 Recommended artifacts:
 
