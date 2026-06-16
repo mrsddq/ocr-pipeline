@@ -15,6 +15,8 @@ class IAMLineDataset(Dataset):
         self.charset = charset
         self.char_to_idx = {char: idx + 1 for idx, char in enumerate(charset)}
         self.image_height = image_height
+        if self.image_height <= 0:
+            raise ValueError("image_height must be positive")
         self.samples = self._load_samples()
 
     def __len__(self) -> int:
@@ -30,19 +32,27 @@ class IAMLineDataset(Dataset):
         return {"image": tensor.unsqueeze(0), "label": label, "text": text}
 
     def _load_samples(self) -> list[tuple[Path, str]]:
+        if not self.xml_dir.is_dir():
+            raise FileNotFoundError(f"Missing IAM XML directory: {self.xml_dir}")
+        if not self.lines_dir.is_dir():
+            raise FileNotFoundError(f"Missing IAM line image directory: {self.lines_dir}")
         samples = []
         for xml_path in self.xml_dir.glob("*.xml"):
             root = ET.parse(xml_path).getroot()
             for line in root.iter("line"):
+                if "id" not in line.attrib:
+                    raise ValueError(f"IAM line entry missing id in {xml_path}")
                 line_id = line.attrib["id"]
                 text = line.attrib.get("text", "")
                 image_path = self.lines_dir / f"{line_id}.png"
-                if image_path.exists() and text:
+                if image_path.exists() and text and any(c in self.char_to_idx for c in text):
                     samples.append((image_path, text))
         return samples
 
 
 def collate_iam_lines(batch):
+    if not batch:
+        raise ValueError("batch must contain at least one IAM line")
     max_width = max(item["image"].shape[-1] for item in batch)
     images, labels, label_lengths, input_lengths = [], [], [], []
     for item in batch:
