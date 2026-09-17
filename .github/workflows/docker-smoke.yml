@@ -40,4 +40,4 @@ jobs:
       - name: Show inference help
         run: docker run --rm ocr-pipeline:smoke --help
       - name: Run tests in Docker
-        run: docker run --rm --entrypoint python ocr-pipeline:smoke -m unittest discover -s tests
+        run: docker run --rm --entrypoint python ocr-pipeline:smoke -m pytest -q
