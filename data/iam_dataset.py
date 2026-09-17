@@ -13,6 +13,8 @@ class IAMLineDataset(Dataset):
         self.xml_dir = Path(xml_dir)
         self.lines_dir = Path(lines_dir)
         self.charset = charset
+        if not charset or len(set(charset)) != len(charset):
+            raise ValueError("charset must contain unique characters")
         self.char_to_idx = {char: idx + 1 for idx, char in enumerate(charset)}
         self.image_height = image_height
         if self.image_height <= 0:
@@ -25,10 +27,10 @@ class IAMLineDataset(Dataset):
     def __getitem__(self, index: int):
         image_path, text = self.samples[index]
         image = Image.open(image_path).convert("L")
-        width = max(1, round(image.width * self.image_height / image.height))
+        width = max(4, round(image.width * self.image_height / image.height))
         image = image.resize((width, self.image_height))
         tensor = torch.tensor(list(image.getdata()), dtype=torch.float32).view(self.image_height, width) / 255.0
-        label = torch.tensor([self.char_to_idx[c] for c in text if c in self.char_to_idx], dtype=torch.long)
+        label = torch.tensor([self.char_to_idx[c] for c in text], dtype=torch.long)
         return {"image": tensor.unsqueeze(0), "label": label, "text": text}
 
     def _load_samples(self) -> list[tuple[Path, str]]:
@@ -37,7 +39,7 @@ class IAMLineDataset(Dataset):
         if not self.lines_dir.is_dir():
             raise FileNotFoundError(f"Missing IAM line image directory: {self.lines_dir}")
         samples = []
-        for xml_path in self.xml_dir.glob("*.xml"):
+        for xml_path in sorted(self.xml_dir.glob("*.xml")):
             root = ET.parse(xml_path).getroot()
             for line in root.iter("line"):
                 if "id" not in line.attrib:
@@ -45,8 +47,18 @@ class IAMLineDataset(Dataset):
                 line_id = line.attrib["id"]
                 text = line.attrib.get("text", "")
                 image_path = self.lines_dir / f"{line_id}.png"
-                if image_path.exists() and text and any(c in self.char_to_idx for c in text):
+                if not image_path.exists():
+                    parts = line_id.split("-")
+                    image_path = self.lines_dir / parts[0] / "-".join(parts[:2]) / f"{line_id}.png"
+                if not image_path.exists():
+                    raise FileNotFoundError(f"Missing IAM image: {line_id}")
+                unknown = set(text) - set(self.charset)
+                if unknown:
+                    raise ValueError(f"Unsupported characters in {line_id}: {sorted(unknown)!r}")
+                if text:
                     samples.append((image_path, text))
+        if not samples:
+            raise ValueError("No labelled IAM lines found")
         return samples
 
 

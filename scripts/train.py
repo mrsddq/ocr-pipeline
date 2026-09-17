@@ -27,12 +27,20 @@ def main(config: str, xml_dir: str, lines_dir: str) -> Path:
     dataset = IAMLineDataset(xml_dir, lines_dir, cfg["data"]["charset"], int(cfg["data"]["image_height"]))
     loader = DataLoader(dataset, batch_size=int(cfg["training"]["batch_size"]), shuffle=True, collate_fn=collate_iam_lines)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = CRNN(num_classes=len(cfg["data"]["charset"]) + 1, hidden_size=int(cfg["model"]["lstm_hidden"])).to(device)
+    model = CRNN(num_classes=len(cfg["data"]["charset"]) + 1, hidden_size=int(cfg["model"]["lstm_hidden"]), lstm_layers=int(cfg["model"].get("lstm_layers", 2))).to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=float(cfg["training"]["lr"]))
-    loss_fn = torch.nn.CTCLoss(blank=int(cfg["training"]["ctc_blank_idx"]), zero_infinity=True)
+    if int(cfg["training"]["ctc_blank_idx"]) != 0:
+        raise ValueError("Dataset encoding reserves token zero for the CTC blank")
+    loss_fn = torch.nn.CTCLoss(blank=0, zero_infinity=False)
     for _epoch in range(int(cfg["training"]["epochs"])):
         for batch in loader:
             logits = model(batch["images"].to(device))
+            offsets = torch.cat([torch.zeros(1, dtype=torch.long), batch["label_lengths"].cumsum(0)])
+            for index, length in enumerate(batch["label_lengths"]):
+                target = batch["labels"][offsets[index]:offsets[index + 1]]
+                minimum = int(length) + int((target[1:] == target[:-1]).sum())
+                if minimum > int(batch["input_lengths"][index]):
+                    raise ValueError("Line image is too narrow for its CTC target; resize or correct the data")
             loss = loss_fn(logits, batch["labels"].to(device), batch["input_lengths"].to(device), batch["label_lengths"].to(device))
             optimizer.zero_grad(set_to_none=True)
             loss.backward()

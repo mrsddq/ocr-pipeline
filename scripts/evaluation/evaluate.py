@@ -1,34 +1,60 @@
-"""Compute CER / WER for OCR predictions."""
+"""Corpus CER/WER for exact reference/prediction pairs; no hidden missing-file skip."""
 import argparse
+import json
 from pathlib import Path
 
-import editdistance
+
+def edit_distance(left, right):
+    previous = list(range(len(right) + 1))
+    for i, a in enumerate(left, 1):
+        current = [i]
+        for j, b in enumerate(right, 1):
+            current.append(min(current[-1] + 1, previous[j] + 1, previous[j - 1] + (a != b)))
+        previous = current
+    return previous[-1]
 
 
 def cer(prediction, reference):
-    return editdistance.eval(prediction, reference) / max(len(reference), 1)
+    return edit_distance(prediction, reference) / max(len(reference), 1)
 
 
 def wer(prediction, reference):
-    return editdistance.eval(prediction.split(), reference.split()) / max(len(reference.split()), 1)
+    return edit_distance(prediction.split(), reference.split()) / max(len(reference.split()), 1)
+
+
+def evaluate(reference_dir, prediction_dir):
+    references = sorted(Path(reference_dir).glob("*.txt"))
+    if not references:
+        raise ValueError("No reference text files found")
+    missing = [p.name for p in references if not (Path(prediction_dir) / f"{p.stem}_ocr.txt").is_file()]
+    if missing:
+        raise FileNotFoundError("Missing predictions: " + ", ".join(missing))
+    chars = words = char_errors = word_errors = 0
+    rows = []
+    for path in references:
+        reference = path.read_text(encoding="utf-8").strip()
+        prediction = (Path(prediction_dir) / f"{path.stem}_ocr.txt").read_text(encoding="utf-8").strip()
+        ce, we = edit_distance(prediction, reference), edit_distance(prediction.split(), reference.split())
+        chars += len(reference)
+        words += len(reference.split())
+        char_errors += ce
+        word_errors += we
+        rows.append({"id": path.stem, "character_errors": ce, "word_errors": we, "reference_characters": len(reference), "reference_words": len(reference.split())})
+    if not chars or not words:
+        raise ValueError("Corpus must contain nonempty reference characters and words")
+    return {"samples": len(rows), "cer": char_errors / chars, "wer": word_errors / words,
+            "character_errors": char_errors, "reference_characters": chars,
+            "word_errors": word_errors, "reference_words": words, "per_sample": rows}
 
 
 if __name__ == "__main__":
     p = argparse.ArgumentParser()
-    p.add_argument("--engine", choices=["tesseract", "crnn"], default="tesseract")
-    p.add_argument("--checkpoint")
+    p.add_argument("--references", required=True)
+    p.add_argument("--predictions", required=True)
+    p.add_argument("--output", default="outputs/metrics/ocr.json")
     a = p.parse_args()
-    gt_dir, pred_dir = Path("data/ground_truth"), Path("outputs")
-    cers, wers = [], []
-    for gt in gt_dir.glob("*.txt"):
-        pred_f = pred_dir / gt.name.replace(".txt", "_ocr.txt")
-        if not pred_f.exists():
-            continue
-        ref, pred = gt.read_text().strip(), pred_f.read_text().strip()
-        cers.append(cer(pred, ref))
-        wers.append(wer(pred, ref))
-    if cers:
-        print(f"CER: {sum(cers) / len(cers):.4f}")
-        print(f"WER: {sum(wers) / len(wers):.4f}")
-    else:
-        print("No pairs found - run infer.py first.")
+    report = evaluate(a.references, a.predictions)
+    output = Path(a.output)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(json.dumps(report, indent=2, allow_nan=False), encoding="utf-8")
+    print(json.dumps(report))
