@@ -21,7 +21,7 @@ def infer_crnn(image_path, checkpoint, cfg):
     from PIL import Image
     from models import CRNN
     charset = cfg["data"]["charset"]
-    model = CRNN(num_classes=len(charset) + 1, hidden_size=int(cfg["model"]["lstm_hidden"]))
+    model = CRNN(num_classes=len(charset) + 1, hidden_size=int(cfg["model"]["lstm_hidden"]), lstm_layers=int(cfg["model"].get("lstm_layers", 2)))
     model.load_state_dict(torch.load(checkpoint, map_location="cpu", weights_only=True))
     model.eval()
     with Image.open(image_path) as source:

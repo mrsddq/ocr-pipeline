@@ -33,8 +33,8 @@ def test_corpus_weighting_and_missing_predictions(tmp_path):
 
 def test_crnn_checkpoint_inference_is_real_and_offline(tmp_path):
     torch.set_num_threads(1)
-    cfg = {"data": {"charset": "AB", "image_height": 16}, "model": {"lstm_hidden": 8}}
-    model = CRNN(3, hidden_size=8)
+    cfg = {"data": {"charset": "AB", "image_height": 16}, "model": {"lstm_hidden": 8, "lstm_layers": 1}}
+    model = CRNN(3, hidden_size=8, lstm_layers=1)
     with torch.no_grad():
         model.classifier.weight.zero_()
         model.classifier.bias.copy_(torch.tensor([-20., 20., -20.]))

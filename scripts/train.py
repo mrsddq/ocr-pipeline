@@ -27,7 +27,7 @@ def main(config: str, xml_dir: str, lines_dir: str) -> Path:
     dataset = IAMLineDataset(xml_dir, lines_dir, cfg["data"]["charset"], int(cfg["data"]["image_height"]))
     loader = DataLoader(dataset, batch_size=int(cfg["training"]["batch_size"]), shuffle=True, collate_fn=collate_iam_lines)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = CRNN(num_classes=len(cfg["data"]["charset"]) + 1, hidden_size=int(cfg["model"]["lstm_hidden"])).to(device)
+    model = CRNN(num_classes=len(cfg["data"]["charset"]) + 1, hidden_size=int(cfg["model"]["lstm_hidden"]), lstm_layers=int(cfg["model"].get("lstm_layers", 2))).to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=float(cfg["training"]["lr"]))
     if int(cfg["training"]["ctc_blank_idx"]) != 0:
         raise ValueError("Dataset encoding reserves token zero for the CTC blank")
