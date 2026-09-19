@@ -35,7 +35,7 @@ scripts/
 
 ```bash
 python -m venv .venv
-.venv\Scripts\activate
+source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
@@ -65,7 +65,7 @@ python -m scripts.inference.infer --input data/raw/sample.png --output outputs/
 ## Evaluation
 
 ```bash
-python -m scripts.evaluation.evaluate --checkpoint outputs/best_model.pt --data data/preprocessed
+python -m scripts.evaluation.evaluate --references data/ground_truth --predictions outputs --output outputs/metrics/ocr.json
 ```
 
 ## Results
@@ -92,5 +92,30 @@ Recommended artifacts:
 ## Limitations
 
 - No dataset is included.
-- Deep OCR model training is an extension point.
+- CRNN training and greedy decoding are implemented; no trained model is supplied.
 - Handwritten, multilingual, and low-resolution documents need separate evaluation.
+
+## Implemented engineering checks
+
+`python -m pytest -q` runs CPU/offline tests using `requirements-test.txt`.
+The tests execute a CRNN checkpoint through image loading and CTC decoding, check
+blank/repeat semantics, corpus-weighted error rates, and malformed datasets.
+These synthetic tests validate execution, not handwriting recognition accuracy.
+
+```bash
+python -m scripts.train --config configs/ocr.yaml --xml-dir data/iam/xml --lines-dir data/iam/lines
+python -m scripts.inference.infer --engine crnn --checkpoint outputs/crnn.pt --input data/sample.png --output outputs
+```
+
+Use the actual `logging.checkpoint_dir` from your configuration. IAM images can
+use flat or official nested line directories. Acquire data under its own access
+and license terms. Unknown characters and missing images fail explicitly; extend
+the charset intentionally instead of silently dropping labels. CRNN targets that
+cannot align at the CNN's width reduction fail instead of becoming zero-loss
+training samples. Training saves a raw state dict: retain the exact YAML charset
+and model dimensions with it. Validation-based checkpoint selection is future work.
+
+Evaluation requires every reference to have a `<stem>_ocr.txt` prediction, strips
+outer whitespace, is case-sensitive, and reports corpus CER/WER with numerator
+and denominator counts plus per-sample errors. Rates can exceed 1 for insertions.
+This avoids the prior missing-prediction skip and unweighted per-line average.
