@@ -31,19 +31,27 @@ def test_corpus_weighting_and_missing_predictions(tmp_path):
     assert wer("one two", "one") == 1
 
 
-def test_crnn_checkpoint_inference_is_real_and_offline(tmp_path):
+@pytest.mark.parametrize("nonfinite", [False, True])
+def test_crnn_checkpoint_inference_is_real_and_offline(tmp_path, nonfinite):
     torch.set_num_threads(1)
     cfg = {"data": {"charset": "AB", "image_height": 16}, "model": {"lstm_hidden": 8, "lstm_layers": 1}}
     model = CRNN(3, hidden_size=8, lstm_layers=1)
     with torch.no_grad():
         model.classifier.weight.zero_()
         model.classifier.bias.copy_(torch.tensor([-20., 20., -20.]))
+        if nonfinite:
+            model.classifier.bias.fill_(float("nan"))
     checkpoint = tmp_path / "model.pt"
     torch.save(model.state_dict(), checkpoint)
     image = tmp_path / "line.png"
     Image.new("L", (40, 16), 255).save(image)
     config = tmp_path / "cfg.yaml"
     config.write_text(yaml.safe_dump(cfg))
+    if nonfinite:
+        with pytest.raises(ValueError, match="finite"):
+            main(image, tmp_path / "out", "crnn", checkpoint, config)
+        assert not (tmp_path / "out").exists()
+        return
     output = main(image, tmp_path / "out", "crnn", checkpoint, config)
     assert output.read_text() == "A"
 

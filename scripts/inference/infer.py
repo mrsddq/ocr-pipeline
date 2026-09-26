@@ -31,7 +31,10 @@ def infer_crnn(image_path, checkpoint, cfg):
     image = image.resize((width, height))
     values = torch.tensor(list(image.getdata()), dtype=torch.float32).view(1, 1, height, width) / 255.0
     with torch.inference_mode():
-        ids = model(values).argmax(-1)[:, 0].tolist()
+        logits = model(values)
+        if not torch.isfinite(logits).all():
+            raise ValueError("Model logits must be finite")
+        ids = logits.argmax(-1)[:, 0].tolist()
     return ctc_decode(ids, charset)
 
 
